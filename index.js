@@ -8,7 +8,7 @@ dotenv.config();
 
 export const app = express();
 
-app.listen(process.env.port);
+app.listen(process.env.port || 3000);
 app.use(express.json());
 app.use(cors());
 
