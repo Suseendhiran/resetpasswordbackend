@@ -73,7 +73,7 @@ router.route("/forgotpassword").put(async (req, res) => {
     return;
   }
   const resetToken = crypto.randomBytes(32).toString("hex");
-  const resetPasswordLink = `http://localhost:3000/resetpassword?token=${resetToken}&id=${userDetails._id}`;
+  const resetPasswordLink = `https://resetpassword9.netlify.app/resetpassword?token=${resetToken}&id=${userDetails._id}`;
   const smtpTransport = nodemailer.createTransport({
     service: "gmail",
     auth: {
