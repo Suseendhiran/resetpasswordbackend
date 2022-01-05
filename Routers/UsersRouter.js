@@ -9,13 +9,14 @@ import {
   createUser,
   generateHashPassword,
   getUserByEmail,
+  getUserById,
+  resetPassword,
+  updateResetToken,
 } from "../helpers.js";
 
 const router = express.Router();
 
 router.route("/signup").post(async (req, res) => {
-  console.log("userdetails", req.body);
-
   const { email, password } = req.body;
   const checkUserAlreadyExist = await getUserByEmail(email);
 
@@ -41,13 +42,13 @@ router.route("/login").post(async (req, res) => {
   const { email, password } = req.body;
 
   const userDetails = await getUserByEmail(email);
-  console.log("login", req.body, userDetails);
+
   if (!userDetails) {
     res.status(401).send({ message: "Account doesn't exist" });
     return;
   }
   const matchpassword = await bcrypt.compare(password, userDetails.password);
-  console.log("matched", matchpassword, password);
+
   if (matchpassword) {
     const token = jwt.sign(
       { id: userDetails._id, email: userDetails.email },
@@ -63,9 +64,9 @@ router.route("/login").post(async (req, res) => {
   }
 });
 
-router.route("/resetpassword").put(async (req, res) => {
+router.route("/forgotpassword").put(async (req, res) => {
   const { email } = req.body;
-  console.log("user", email);
+
   const userDetails = await getUserByEmail(email);
   if (!userDetails) {
     res.status(401).send({ message: "Account doesn't exist" });
@@ -92,18 +93,44 @@ router.route("/resetpassword").put(async (req, res) => {
               <a href=${resetPasswordLink}>${resetPasswordLink}</a>
             </div>`,
     });
-    console.log("Mail respo", sentResponse);
   }
   sendResetMail()
-    .then((msg) => {
-      res.send({
-        message:
-          "Email sent to your mail, if not found, please check your spam folder",
-      });
+    .then(async (msg) => {
+      const resetTokenRes = await updateResetToken(resetToken, userDetails._id);
+
+      if (resetTokenRes.modifiedCount > 0) {
+        res.send({
+          message:
+            "Email sent to your mail, if not found, please check your spam folder",
+        });
+      } else {
+        res.status(401).send({ message: resetTokenRes });
+      }
     })
     .catch(() => {
       res.send({ message: "Error!" });
     });
+});
+
+router.route("/resetpassword").put(async (req, res) => {
+  const { token, id, password } = req.body;
+
+  const userDetails = await getUserById(id);
+
+  if (!userDetails) {
+    res.status(401).send({ message: "Something went wrong!" });
+    return;
+  }
+  if (userDetails.resetToken === token) {
+    const hashedPassword = await generateHashPassword(password);
+    const mongoResponse = await resetPassword(hashedPassword, id);
+
+    if (mongoResponse.modifiedCount > 0) {
+      res.send({ message: "Password Changed Successfully", status: true });
+    }
+  } else {
+    res.status(401).send({ message: "Token Expired" });
+  }
 });
 
 export const usersRouter = router;
